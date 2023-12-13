@@ -1,8 +1,11 @@
 from flask import Flask, request, send_file, render_template, redirect, url_for
 import psycopg2, io
 from os import getenv
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
+## set the jinja template config
 
 def get_db_connection():
     return psycopg2.connect(getenv('DATABASE_URL'))

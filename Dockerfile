@@ -5,27 +5,33 @@ FROM python:3.9-slim
 WORKDIR /usr/src/app
 
 # Install psycopg2 dependencies
-RUN apt-get update \
-    && apt-get -y install libpq-dev gcc \
-    && pip install psycopg2
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    gcc \
+    postgresql-client \
+    && apt-get clean
 
 # Install Python dependencies
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the current directory contents into the container at /usr/src/app
-COPY . .
+# Copy only the necessary files
+COPY src/ ./src
+COPY init_db.sh .
+COPY .env .
+
+# Make sure the script is executable
+RUN chmod +x ./init_db.sh
 
 # Make port 5000 available to the world outside this container
 EXPOSE 5000
 
-# Define environment variable
-ENV FLASK_APP=app.py
+# Set environment variables
+ENV FLASK_APP=src/app.py
 ENV FLASK_RUN_HOST=0.0.0.0
 
-# Run the initialization script to create the database and tables
-COPY init_db.sh ./init_db.sh
-RUN chmod +x ./init_db.sh && ./init_db.sh
+# Define the entrypoint command to run when the container starts
+ENTRYPOINT ["./init_db.sh"]
 
-# Run app.py when the container launches
+# Command to start the Flask application
 CMD ["flask", "run"]

@@ -21,3 +21,7 @@ CREATE TABLE IF NOT EXISTS scripts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 EOF
+echo "Database initialized successfully."
+
+# Hand off to the CMD of the Dockerfile
+exec "$@"
