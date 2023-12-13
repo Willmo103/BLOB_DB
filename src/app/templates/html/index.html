@@ -1,16 +1,25 @@
-<!doctype html>
-<html>
+<html lang="en">
 
-<body>
-    <form method="post" action="/" enctype="multipart/form-data">
-        <input type="file" name="file">
-        <input type="submit" value="Upload">
-    </form>
-    <ul>
-        {% for file in files %}
-        <li><a href="{{ url_for('download_file', id=file[0]) }}">{{ file[1] }}</a></li>
-        {% endfor %}
-    </ul>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Include Tailwind CSS from CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.1.2/dist/tailwind.min.css" rel="stylesheet">
+    <title>File Upload</title>
+</head>
+
+<body class="bg-gray-100">
+    <div class="container mx-auto p-8">
+        <h1 class="text-xl font-bold mb-4">Upload a file</h1>
+        <form method="post" action="/" enctype="multipart/form-data">
+            <input type="file" name="file">
+            <input type="submit" value="Upload">
+        </form>
+        <ul>
+            {% for file in files %}
+            <li><a href="{{ url_for('download_file', id=file[0]) }}">{{ file[1] }}</a></li>
+            {% endfor %}
+        </ul>
 </body>
 
 </html>
