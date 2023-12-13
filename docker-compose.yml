@@ -9,6 +9,11 @@ services:
       - FLASK_ENV=${FLASK_ENV}
       - FLASK_APP=${FLASK_APP}
       - DATABASE_URL=${DATABASE_URL_DEV}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
     depends_on:
       - db
 
@@ -17,9 +22,9 @@ services:
     ports:
       - "5432:5432" # Expose the PostgreSQL port
     environment:
-      - POSTGRES_DB=file_database
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password!
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_HOST_AUTH_METHOD=trust
     command:
       - "postgres"
