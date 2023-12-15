@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -9,17 +10,80 @@
 </head>
 
 <body class="bg-gray-100">
+
     <div class="container mx-auto p-8">
-        <h1 class="text-xl font-bold mb-4">Upload a file</h1>
-        <form method="post" action="/" enctype="multipart/form-data">
-            <input type="file" name="file">
-            <input type="submit" value="Upload">
-        </form>
-        <ul>
-            {% for file in files %}
-            <li><a href="{{ url_for('download_file', id=file[0]) }}">{{ file[1] }}</a></li>
-            {% endfor %}
-        </ul>
+        <div class="flex flex-col items-center justify-center">
+            <h1 class="text-3xl font-bold mb-8">Upload a File</h1>
+            <form method="post" action="/" enctype="multipart/form-data" class="mb-4" id="upload-form">
+                <div class="flex items-center justify-center w-full">
+                    <label
+                        class="flex flex-col w-full h-32 border-4 border-dashed hover:bg-gray-100 hover:border-gray-300"
+                        id="dropzone">
+                        <div class="flex flex-col items-center justify-center pt-7">
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                class="w-12 h-12 text-gray-400 group-hover:text-gray-600" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M7 7l10 10m0-10l-10 10"></path>
+                            </svg>
+                            <p class="pt-1 text-sm tracking-wider text-gray-400 group-hover:text-gray-600"
+                                id="dropzone-instructions">
+                                Attach a file
+                            </p>
+                        </div>
+                        <input type="file" name="file" class="opacity-0" onchange="fileSelected()" id="file-input" />
+                    </label>
+                </div>
+                <button type="submit"
+                    class="mt-3 px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-50 disabled:bg-blue-200"
+                    disabled id="submit-button">
+                    Upload
+                </button>
+            </form>
+            <div class="mt-8 w-full">
+                {% for file in files %}
+                <div class="flex items-center justify-between bg-white rounded-lg shadow-md p-4 mb-2">
+                    <div class="flex items-center">
+                        <h2 class="text-lg font-semibold text-gray-900 truncate">{{ file[1] }}</h2>
+                    </div>
+                    <div class="flex items-center">
+                        <a href="{{ url_for('download_file', id=file[0]) }}"
+                            class="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded hover:bg-blue-600 mr-2">
+                            Download
+                        </a>
+                        <form action="{{ url_for('delete_file', id=file[0]) }}" method="POST">
+                            <button type="submit"
+                                class="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded hover:bg-red-600">
+                                Delete
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function fileSelected() {
+            var fileInput = document.getElementById('file-input');
+            var submitButton = document.getElementById('submit-button');
+            var dropzone = document.getElementById('dropzone');
+            var dropzoneInstructions = document.getElementById('dropzone-instructions');
+
+            // Check if any file is selected
+            if (fileInput.files.length > 0) {
+                submitButton.disabled = false;  // Enable the submit button
+                dropzone.classList.add('bg-gray-200', 'border-gray-500');  // Change dropzone background
+                dropzoneInstructions.textContent = 'File ready to upload';  // Update dropzone instructions
+            } else {
+                submitButton.disabled = true;  // Disable the submit button
+                dropzone.classList.remove('bg-gray-200', 'border-gray-500');  // Revert dropzone background
+                dropzoneInstructions.textContent = 'Attach a file';  // Revert dropzone instructions
+            }
+        }
+    </script>
+
 </body>
 
 </html>
