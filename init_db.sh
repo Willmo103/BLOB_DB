@@ -24,4 +24,4 @@ EOF
 echo "Database initialized successfully."
 
 # Hand off to the CMD of the Dockerfile
-exec "$@"
+# exec "$@"

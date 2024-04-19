@@ -21,7 +21,7 @@ COPY init_db.sh .
 COPY .env .
 
 # Make sure the script is executable
-RUN chmod +x ./init_db.sh
+# RUN chmod +x ./init_db.sh
 
 # Make port 5000 available to the world outside this container
 EXPOSE 5000
@@ -31,7 +31,7 @@ ENV FLASK_APP=src/app.py
 ENV FLASK_RUN_HOST=0.0.0.0
 
 # Define the entrypoint command to run when the container starts
-ENTRYPOINT ["./init_db.sh"]
+# ENTRYPOINT ["./init_db.sh"]
 
 # Command to start the Flask application
 CMD ["flask", "run"]
