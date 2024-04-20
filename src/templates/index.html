@@ -73,15 +73,16 @@
     <!-- Add modal HTML code here -->
     <div id="modal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
         <div class="bg-white p-8 rounded shadow-lg">
-            <h2 class="text-lg font-semibold mb-4">Enter Password</h2>
-            <input type="password" id="password-input" class="border border-gray-300 rounded px-3 py-2 mb-4" />
+            <h2 class="text-lg font-semibold mb-4">Set or Enter Encryption Password</h2>
+            <input type="password" id="password-input" class="border border-gray-300 rounded px-3 py-2 mb-4" required
+                minlength="8" />
+            <span id="password-error" class="text-red-500 font-semibold hidden mb-4"></span>
             <button id="modal-submit-button"
                 class="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded hover:bg-blue-600">
                 Submit
             </button>
         </div>
     </div>
-
     <script>
         function fileSelected() {
             var fileInput = document.getElementById('file-input');
@@ -114,15 +115,59 @@
 
         // Add event listener to the modal submit button
         var modalSubmitButton = document.getElementById('modal-submit-button');
-        modalSubmitButton.addEventListener('click', function () {
-            var passwordInput = document.getElementById('password-input');
-            var encryptKeyInput = document.createElement('input');
-            encryptKeyInput.type = 'hidden';
-            encryptKeyInput.name = 'encrypt_key';
-            encryptKeyInput.value = passwordInput.value;
-            var uploadForm = document.getElementById('upload-form');
-            uploadForm.appendChild(encryptKeyInput);
-            uploadForm.submit();
+        var passwordInput = document.getElementById('password-input');
+        var passwordError = document.getElementById('password-error');
+        var modal = document.getElementById('modal');
+
+        modalSubmitButton.addEventListener('click', function (event) {
+            var password = passwordInput.value;
+
+            // Reset the error message
+            passwordError.textContent = '';
+            passwordError.classList.add('hidden');
+
+            // Validate the password
+            if (password.trim() === '') {
+                event.preventDefault(); // Prevent form submission
+                passwordError.textContent = 'Please enter a password';
+                passwordError.classList.remove('hidden');
+            } else if (password.length < 8) {
+                event.preventDefault(); // Prevent form submission
+                passwordError.textContent = 'Password must be at least 8 characters long';
+                passwordError.classList.remove('hidden');
+            } else {
+                // Password is valid, proceed with form submission
+                var encryptKeyInput = document.createElement('input');
+                encryptKeyInput.type = 'hidden';
+                encryptKeyInput.name = 'encrypt_key';
+                encryptKeyInput.value = password;
+
+                var fileInput = document.getElementById('file-input');
+                var uploadForm = document.getElementById('upload-form');
+                var formData = new FormData(uploadForm);
+                formData.append('encrypt_key', password);
+                formData.append('file', fileInput.files[0]);
+
+                // Submit the form using the FormData object
+                fetch('/', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => {
+                        if (response.ok) {
+                            // Redirect to success page or show a success message
+                            modal.classList.add('hidden'); // Hide the modal
+                            window.location.href = '/';
+                        } else {
+                            // Handle error case
+                            console.error('File upload failed');
+                            throw new Error('File upload failed');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('An error occurred:', error);
+                    });
+            }
         });
     </script>
 

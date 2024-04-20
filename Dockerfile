@@ -29,9 +29,10 @@ EXPOSE 5000
 # Set environment variables
 ENV FLASK_APP=src/app.py
 ENV FLASK_RUN_HOST=0.0.0.0
+ENV FLASK_PORT=5551
 
 # Define the entrypoint command to run when the container starts
 # ENTRYPOINT ["./init_db.sh"]
 
 # Command to start the Flask application
-CMD ["flask", "run"]
+CMD ["flask", "run" "--port=5551" "--host=0.0.0.0"]
