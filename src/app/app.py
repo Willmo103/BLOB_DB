@@ -16,25 +16,27 @@ app = Flask(__name__, template_folder="../templates")
 
 
 class Script:
-    def __init__(self, filename, data, mimetype):
-        self.filename = filename
-        self.data = data
-        self.mimetype = mimetype
-
     @staticmethod
-    def create_table():
+    def create_tables():
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            DROP TABLE IF EXISTS public.scripts;
+            DROP TABLE IF EXISTS public.scripts CASCADE;
             CREATE TABLE IF NOT EXISTS public.scripts (
                 id SERIAL PRIMARY KEY,
                 filename VARCHAR(255),
                 data BYTEA,
                 mimetype VARCHAR(50),
                 encrypted BOOLEAN DEFAULT FALSE,
-                encrypt_key BYTEA,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        cur.execute("""
+            DROP TABLE IF EXISTS public.encryption_keys CASCADE;
+            CREATE TABLE IF NOT EXISTS public.encryption_keys (
+                id SERIAL PRIMARY KEY,
+                script_id INTEGER REFERENCES public.scripts(id),
+                encrypt_key BYTEA
             );
         """)
         conn.commit()
@@ -45,12 +47,9 @@ class Script:
 class EncryptionHandler:
     def __init__(self, key):
         self.key = key
+        self.hashed_key = hashlib.sha256(key.strip().encode()).digest()
 
     def encrypt_file(self, file_data):
-        # Hash the plaintext key
-        key = self.key.strip()
-        hashed_key = hashlib.sha256(key.encode()).digest()
-
         # Create a temporary ZIP archive containing the file
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             with zipfile.ZipFile(temp_file.name, 'w') as zip_file:
@@ -65,8 +64,7 @@ class EncryptionHandler:
 
         # Create a cipher object using AES-256 in CBC mode
         backend = default_backend()
-        cipher = Cipher(algorithms.AES(hashed_key), modes.CBC(
-            hashed_key[:16]), backend=backend)
+        cipher = Cipher(algorithms.AES(self.hashed_key), modes.CBC(self.hashed_key[:16]), backend=backend)
         encryptor = cipher.encryptor()
 
         # Pad and encrypt the ZIP archive data
@@ -74,18 +72,16 @@ class EncryptionHandler:
         padded_data = padder.update(zip_data) + padder.finalize()
         encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
 
-        return encrypted_data, hashed_key
+        return encrypted_data
 
-    def decrypt_file(self, encrypted_data, hashed_key):
+    def decrypt_file(self, encrypted_data):
         # Create a cipher object using AES-256 in CBC mode
         backend = default_backend()
-        cipher = Cipher(algorithms.AES(hashed_key), modes.CBC(
-            hashed_key[:16]), backend=backend)
+        cipher = Cipher(algorithms.AES(self.hashed_key), modes.CBC(self.hashed_key[:16]), backend=backend)
         decryptor = cipher.decryptor()
 
         # Decrypt the file data
-        decrypted_data = decryptor.update(
-            encrypted_data) + decryptor.finalize()
+        decrypted_data = decryptor.update(encrypted_data) + decryptor.finalize()
 
         # Remove the padding from the decrypted data
         unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
@@ -93,13 +89,16 @@ class EncryptionHandler:
 
         # Extract the original file from the decrypted ZIP archive
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            with zipfile.ZipFile(temp_file, 'w') as zip_file:
-                zip_file.writestr('file', unpadded_data)
+            temp_file.write(unpadded_data)
+            temp_file.seek(0)
 
-            with zip_file.open('file', 'r') as f:
-                original_file_data = f.read()
+            with zipfile.ZipFile(temp_file, 'r') as zip_file:
+                original_file_data = zip_file.read('file')
 
         return original_file_data
+
+    def check_password(self, password):
+        return hashlib.sha256(password.strip().encode()).digest() == self.hashed_key
 
 
 def get_db_connection():
@@ -123,16 +122,19 @@ def upload_file():
     if request.form.get("encrypt") is not None:
         key = request.form["encrypt_key"]
         encryption_handler = EncryptionHandler(key)
-        encrypted_file, hashed_key = encryption_handler.encrypt_file(
-            file.read())
+        encrypted_file = encryption_handler.encrypt_file(file.read())
 
-        # Save the encrypted file and the hashed key to the database
+        # Save the encrypted file to the database
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO scripts (filename, data, mimetype, encrypted, encrypt_key) VALUES (%s, %s, %s, %s, %s)",
-            (file.filename, psycopg2.Binary(encrypted_file),
-             file.mimetype, True, psycopg2.Binary(hashed_key)),
+            "INSERT INTO scripts (filename, data, mimetype, encrypted) VALUES (%s, %s, %s, %s) RETURNING id",
+            (file.filename, psycopg2.Binary(encrypted_file), file.mimetype, True),
+        )
+        script_id = cur.fetchone()[0]
+        cur.execute(
+            "INSERT INTO encryption_keys (script_id, encrypt_key) VALUES (%s, %s)",
+            (script_id, psycopg2.Binary(encryption_handler.hashed_key)),
         )
         conn.commit()
         cur.close()
@@ -152,29 +154,54 @@ def upload_file():
     return redirect(url_for("index"))
 
 
-@app.route("/download/<int:id>")
+@app.route("/download/<int:id>", methods=["POST"])
 def download_file(id):
+    password = request.form.get("decrypt_password")
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
-        "SELECT filename, data, mimetype, encrypted, encrypt_key FROM scripts WHERE id = %s",
+        "SELECT filename, data, mimetype, encrypted FROM scripts WHERE id = %s",
         (id,)
     )
     file = cur.fetchone()
-    cur.close()
-    conn.close()
 
     if file:
         if file[3]:  # File is encrypted
-            encryption_handler = EncryptionHandler("")
-            decrypted_data = encryption_handler.decrypt_file(file[1], file[4])
-            return send_file(
-                io.BytesIO(decrypted_data),
-                mimetype=file[2],
-                as_attachment=True,
-                download_name=file[0],
+            if not password:
+                cur.close()
+                conn.close()
+                return "Decryption password is required", 400
+
+            cur.execute(
+                "SELECT encrypt_key FROM encryption_keys WHERE script_id = %s",
+                (id,)
             )
+            encrypt_key = cur.fetchone()
+
+            if encrypt_key:
+                encryption_handler = EncryptionHandler(password)
+
+                if encryption_handler.hashed_key == bytes(encrypt_key[0]):
+                    decrypted_data = encryption_handler.decrypt_file(file[1])
+                    cur.close()
+                    conn.close()
+                    return send_file(
+                        io.BytesIO(decrypted_data),
+                        mimetype=file[2],
+                        as_attachment=True,
+                        download_name=file[0],
+                    )
+                else:
+                    cur.close()
+                    conn.close()
+                    return "Invalid decryption password", 400
+            else:
+                cur.close()
+                conn.close()
+                return "Encryption key not found", 404
         else:  # File is not encrypted
+            cur.close()
+            conn.close()
             return send_file(
                 io.BytesIO(file[1]),
                 mimetype=file[2],
@@ -182,7 +209,8 @@ def download_file(id):
                 download_name=file[0],
             )
     else:
-        # Handle the case where the file is not found
+        cur.close()
+        conn.close()
         return "File not found", 404
 
 
@@ -190,6 +218,8 @@ def download_file(id):
 def delete_file(id):
     conn = get_db_connection()
     cur = conn.cursor()
+    # Delete the encryption key entry from the database
+    cur.execute('DELETE FROM encryption_keys WHERE script_id = %s', (id,))
     # Delete the file entry from the database
     cur.execute('DELETE FROM scripts WHERE id = %s', (id,))
     conn.commit()
@@ -200,5 +230,5 @@ def delete_file(id):
 
 
 if __name__ == "__main__":
-    Script.create_table()  # Create the table before running the app
+    Script.create_tables()  # Create the tables before running the app
     app.run(debug=True)

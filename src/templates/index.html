@@ -31,7 +31,8 @@
                                 Attach a file
                             </p>
                         </div>
-                        <input type="file" name="file" class="opacity-0" onchange="fileSelected()" id="file-input" />
+                        <input type="file" name="file" class="opacity-0" onchange="handleFileSelect()"
+                            id="file-input" />
                     </label>
                 </div>
                 <div class="flex items-center justify-center w-full">
@@ -53,10 +54,10 @@
                         <h2 class="text-lg font-semibold text-gray-900 truncate">{{ file[1] }}</h2>
                     </div>
                     <div class="flex items-center">
-                        <a href="{{ url_for('download_file', id=file[0]) }}"
-                            class="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded hover:bg-blue-600 mr-2">
+                        <button data-id="{{ file[0] }}"
+                            class="download-button px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded hover:bg-blue-600 mr-2">
                             Download
-                        </a>
+                        </button>
                         <form action="{{ url_for('delete_file', id=file[0]) }}" method="POST">
                             <button type="submit"
                                 class="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded hover:bg-red-600">
@@ -70,96 +71,109 @@
         </div>
     </div>
 
-    <!-- Add modal HTML code here -->
-    <div id="modal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
+    <!-- Encryption Modal -->
+    <div id="encryption-modal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
         <div class="bg-white p-8 rounded shadow-lg">
             <h2 class="text-lg font-semibold mb-4">Set or Enter Encryption Password</h2>
-            <input type="password" id="password-input" class="border border-gray-300 rounded px-3 py-2 mb-4" required
-                minlength="8" />
-            <span id="password-error" class="text-red-500 font-semibold hidden mb-4"></span>
-            <button id="modal-submit-button"
+            <input type="password" id="encryption-password-input" class="border border-gray-300 rounded px-3 py-2 mb-4"
+                required minlength="8" />
+            <span id="encryption-password-error" class="text-red-500 font-semibold hidden mb-4"></span>
+            <button id="encryption-modal-submit-button"
                 class="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded hover:bg-blue-600">
                 Submit
             </button>
         </div>
     </div>
-    <script>
-        function fileSelected() {
-            var fileInput = document.getElementById('file-input');
-            var submitButton = document.getElementById('submit-button');
-            var dropzone = document.getElementById('dropzone');
-            var dropzoneInstructions = document.getElementById('dropzone-instructions');
 
-            // Check if any file is selected
+    <!-- Decryption Modal -->
+    <div id="decryption-modal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
+        <div class="bg-white p-8 rounded shadow-lg">
+            <h2 class="text-lg font-semibold mb-4">Enter Decryption Password</h2>
+            <input type="password" id="decryption-password-input" class="border border-gray-300 rounded px-3 py-2 mb-4"
+                required />
+            <span id="decryption-password-error" class="text-red-500 font-semibold hidden mb-4"></span>
+            <button id="decryption-modal-submit-button"
+                class="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded hover:bg-blue-600">
+                Submit
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const fileInput = document.getElementById('file-input');
+        const submitButton = document.getElementById('submit-button');
+        const dropzone = document.getElementById('dropzone');
+        const dropzoneInstructions = document.getElementById('dropzone-instructions');
+        const encryptCheckbox = document.getElementById('encrypt');
+        const encryptionModal = document.getElementById('encryption-modal');
+        const encryptionPasswordInput = document.getElementById('encryption-password-input');
+        const encryptionPasswordError = document.getElementById('encryption-password-error');
+        const encryptionModalSubmitButton = document.getElementById('encryption-modal-submit-button');
+        const downloadButtons = document.querySelectorAll('.download-button');
+        const decryptionModal = document.getElementById('decryption-modal');
+        const decryptionPasswordInput = document.getElementById('decryption-password-input');
+        const decryptionPasswordError = document.getElementById('decryption-password-error');
+        const decryptionModalSubmitButton = document.getElementById('decryption-modal-submit-button');
+
+        // Event Listeners
+        fileInput.addEventListener('change', handleFileSelect);
+        encryptCheckbox.addEventListener('change', handleEncryptCheckboxChange);
+        encryptionModalSubmitButton.addEventListener('click', handleEncryptionModalSubmit);
+        downloadButtons.forEach(button => button.addEventListener('click', handleDownloadClick));
+        decryptionModalSubmitButton.addEventListener('click', handleDecryptionModalSubmit);
+
+        // Functions
+        function handleFileSelect() {
             if (fileInput.files.length > 0) {
-                submitButton.disabled = false;  // Enable the submit button
-                dropzone.classList.add('bg-gray-200', 'border-gray-500');  // Change dropzone background
-                dropzoneInstructions.textContent = 'File ready to upload';  // Update dropzone instructions
+                submitButton.disabled = false;
+                dropzone.classList.add('bg-gray-200', 'border-gray-500');
+                dropzoneInstructions.textContent = 'File ready to upload';
             } else {
-                submitButton.disabled = true;  // Disable the submit button
-                dropzone.classList.remove('bg-gray-200', 'border-gray-500');  // Revert dropzone background
-                dropzoneInstructions.textContent = 'Attach a file';  // Revert dropzone instructions
+                submitButton.disabled = true;
+                dropzone.classList.remove('bg-gray-200', 'border-gray-500');
+                dropzoneInstructions.textContent = 'Attach a file';
             }
         }
 
-        // Add event listener to the checkbox
-        var encryptCheckbox = document.getElementById('encrypt');
-        encryptCheckbox.addEventListener('change', function () {
-            var modal = document.getElementById('modal');
-            if (this.checked) {
-                modal.classList.remove('hidden');  // Show the modal
-            } else {
-                modal.classList.add('hidden');  // Hide the modal
-            }
-        });
+        function handleEncryptCheckboxChange() {
+            encryptionModal.classList.toggle('hidden', !this.checked);
+        }
 
-        // Add event listener to the modal submit button
-        var modalSubmitButton = document.getElementById('modal-submit-button');
-        var passwordInput = document.getElementById('password-input');
-        var passwordError = document.getElementById('password-error');
-        var modal = document.getElementById('modal');
+        function handleEncryptionModalSubmit(event) {
+            const password = encryptionPasswordInput.value;
 
-        modalSubmitButton.addEventListener('click', function (event) {
-            var password = passwordInput.value;
+            encryptionPasswordError.textContent = '';
+            encryptionPasswordError.classList.add('hidden');
 
-            // Reset the error message
-            passwordError.textContent = '';
-            passwordError.classList.add('hidden');
-
-            // Validate the password
             if (password.trim() === '') {
-                event.preventDefault(); // Prevent form submission
-                passwordError.textContent = 'Please enter a password';
-                passwordError.classList.remove('hidden');
+                event.preventDefault();
+                encryptionPasswordError.textContent = 'Please enter a password';
+                encryptionPasswordError.classList.remove('hidden');
             } else if (password.length < 8) {
-                event.preventDefault(); // Prevent form submission
-                passwordError.textContent = 'Password must be at least 8 characters long';
-                passwordError.classList.remove('hidden');
+                event.preventDefault();
+                encryptionPasswordError.textContent = 'Password must be at least 8 characters long';
+                encryptionPasswordError.classList.remove('hidden');
             } else {
-                // Password is valid, proceed with form submission
-                var encryptKeyInput = document.createElement('input');
+                const encryptKeyInput = document.createElement('input');
                 encryptKeyInput.type = 'hidden';
                 encryptKeyInput.name = 'encrypt_key';
                 encryptKeyInput.value = password;
 
-                var fileInput = document.getElementById('file-input');
-                var uploadForm = document.getElementById('upload-form');
-                var formData = new FormData(uploadForm);
+                const uploadForm = document.getElementById('upload-form');
+                const formData = new FormData(uploadForm);
                 formData.append('encrypt_key', password);
                 formData.append('file', fileInput.files[0]);
 
-                // Submit the form using the FormData object
                 fetch('/', {
                     method: 'POST',
                     body: formData
                 })
                     .then(response => {
                         if (response.ok) {
-                            // Redirect to success page or show a success message
-                            modal.classList.add('hidden'); // Hide the modal
+                            encryptionModal.classList.add('hidden');
                             window.location.href = '/';
                         } else {
-                            // Handle error case
                             console.error('File upload failed');
                             throw new Error('File upload failed');
                         }
@@ -168,7 +182,52 @@
                         console.error('An error occurred:', error);
                     });
             }
-        });
+        }
+
+        function handleDownloadClick(event) {
+            event.preventDefault();
+            const fileId = this.getAttribute('data-id');
+            decryptionModal.setAttribute('data-file-id', fileId);
+            decryptionModal.classList.remove('hidden');
+        }
+
+        function handleDecryptionModalSubmit() {
+            const password = decryptionPasswordInput.value;
+            const fileId = decryptionModal.getAttribute('data-file-id');
+
+            decryptionPasswordError.textContent = '';
+            decryptionPasswordError.classList.add('hidden');
+
+            fetch(`/download/${fileId}`, {
+                method: 'POST',
+                body: new FormData(document.createElement('form')).append('decrypt_password', password)
+            })
+                .then(response => {
+                    if (response.ok) {
+                        return response.blob();
+                    } else {
+                        return response.text().then(error => {
+                            throw new Error(error);
+                        });
+                    }
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'file.zip';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                    decryptionModal.classList.add('hidden');
+                })
+                .catch(error => {
+                    console.error('Decryption failed:', error);
+                    decryptionPasswordError.textContent = 'Decryption failed. Please enter the correct password.';
+                    decryptionPasswordError.classList.remove('hidden');
+                });
+        }
     </script>
 
 </body>

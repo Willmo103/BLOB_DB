@@ -17,19 +17,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy only the necessary files
 COPY src/ ./src
-COPY init_db.sh .
 COPY .env .
 
-# Make sure the script is executable
-# RUN chmod +x ./init_db.sh
-
 # Make port 5000 available to the world outside this container
-EXPOSE 5000
+EXPOSE 5551
 
 # Set environment variables
 ENV FLASK_APP=src/app.py
-ENV FLASK_RUN_HOST=0.0.0.0
-ENV FLASK_PORT=5551
 
 # Define the entrypoint command to run when the container starts
 # ENTRYPOINT ["./init_db.sh"]
