@@ -1,0 +1,6 @@
+.venv
+*.log
+.gitignore
+flake8
+*.pgsql
+*git*
