@@ -9,12 +9,13 @@
     <title>File Upload</title>
 </head>
 
-<body class="bg-gray-100">
+<body class="bg-gray-100 dark:bg-gray-900">
 
     <div class="container mx-auto p-8">
         <div class="flex flex-col items-center justify-center">
             <h1 class="text-3xl font-bold mb-8">Upload a File</h1>
             <form method="post" action="/" enctype="multipart/form-data" class="mb-4" id="upload-form">
+                {{ upload_form.hidden_tag() }}
                 <div class="flex items-center justify-center w-full">
                     <label
                         class="flex flex-col w-full h-32 border-4 border-dashed hover:bg-gray-100 hover:border-gray-300"
@@ -31,39 +32,42 @@
                                 Attach a file
                             </p>
                         </div>
-                        <input type="file" name="file" class="opacity-0" onchange="handleFileSelect()"
-                            id="file-input" />
+                        {{ upload_form.file(class="opacity-0", onchange="handleFileSelect()", id="file-input") }}
                     </label>
                 </div>
                 <div class="flex items-center justify-center w-full">
                     <label for="encrypt" class="flex items-center">
-                        <input type="checkbox" id="encrypt" name="encrypt" class="form-checkbox" />
+                        {{ upload_form.encrypt(class="form-checkbox") }}
                         <span class="ml-2">Encrypt File</span>
                     </label>
                 </div>
-                <button type="submit"
-                    class="mt-3 px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-50 disabled:bg-blue-200"
-                    disabled id="submit-button">
-                    Upload
-                </button>
+                <div id="encryption-password-container" class="hidden mb-4">
+                    {{ upload_form.encrypt_password(class="border border-gray-300 rounded px-3 py-2 w-full",
+                    placeholder="Encryption Password") }}
+                </div>
+                {{ upload_form.submit(class="mt-3 px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md
+                w-full shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300
+                disabled:opacity-50 disabled:bg-blue-200", id="submit-button", disabled=True) }}
             </form>
             <div class="mt-8 w-full">
-                {% for file in files %}
+                {% for script in scripts %}
                 <div class="flex items-center justify-between bg-white rounded-lg shadow-md p-4 mb-2">
                     <div class="flex items-center">
-                        <h2 class="text-lg font-semibold text-gray-900 truncate">{{ file[1] }}</h2>
+                        <h2 class="text-lg font-semibold text-gray-900 truncate">{{ script.filename }}</h2>
+                        {% if script.encrypted %}
+                        <span class="text-sm text-red-500 ml-2">Encrypted</span>
+                        {% endif %}
                     </div>
                     <div class="flex items-center">
-                        <button data-id="{{ file[0] }}"
+                        <button data-id="{{ script.id }}" data-filename="{{ script.filename }}"
+                            data-encrypted="{{ script.encrypted }}"
                             class="download-button px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded hover:bg-blue-600 mr-2">
                             Download
                         </button>
-                        <form action="{{ url_for('delete_file', id=file[0]) }}" method="POST">
-                            <button type="submit"
-                                class="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded hover:bg-red-600">
-                                Delete
-                            </button>
-                        </form>
+                        <button data-id="{{ script.id }}" data-encrypted="{{ script.encrypted }}"
+                            class="delete-button px-4 py-2 bg-red-500 text-white text-sm font-medium rounded hover:bg-red-600">
+                            Delete
+                        </button>
                     </div>
                 </div>
                 {% endfor %}
@@ -71,34 +75,43 @@
         </div>
     </div>
 
-    <!-- Encryption Modal -->
-    <div id="encryption-modal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
-        <div class="bg-white p-8 rounded shadow-lg">
-            <h2 class="text-lg font-semibold mb-4">Set or Enter Encryption Password</h2>
-            <input type="password" id="encryption-password-input" class="border border-gray-300 rounded px-3 py-2 mb-4"
-                required minlength="8" />
-            <span id="encryption-password-error" class="text-red-500 font-semibold hidden mb-4"></span>
-            <button id="encryption-modal-submit-button"
-                class="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded hover:bg-blue-600">
-                Submit
-            </button>
-        </div>
-    </div>
-
     <!-- Decryption Modal -->
-    <div id="decryption-modal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
-        <div class="bg-white p-8 rounded shadow-lg">
+    <div id="decryption-modal"
+        class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden onclick="
+        decryptionModal.classList.add('hidden')">
+        {# Modal Content #}
+        <div class=" bg-white p-8 rounded shadow-lg modal-content">
             <h2 class="text-lg font-semibold mb-4">Enter Decryption Password</h2>
-            <input type="password" id="decryption-password-input" class="border border-gray-300 rounded px-3 py-2 mb-4"
-                required />
-            <span id="decryption-password-error" class="text-red-500 font-semibold hidden mb-4"></span>
-            <button id="decryption-modal-submit-button"
-                class="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded hover:bg-blue-600">
-                Submit
-            </button>
+            <form method="post" id="decrypt-form">
+                {{ decrypt_form.hidden_tag() }}
+                <div class="mb-4">
+                    {{ decrypt_form.decrypt_password(class="border border-gray-300 rounded px-3 py-2 w-full",
+                    placeholder="Decryption Password", required=True) }}
+                </div>
+                <span id="decryption-password-error" class="text-red-500 font-semibold hidden mb-4"></span>
+                {{ decrypt_form.submit(class="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded
+                hover:bg-blue-600", id="decryption-modal-submit-button") }}
+            </form>
         </div>
     </div>
 
+    <!-- Deletion Modal -->
+    <div id="deletion-modal" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
+        <div class="bg-white p-8 rounded shadow-lg modal-content">
+            <h2 class="text-lg font-semibold mb-4">Enter Deletion Password</h2>
+            <form method="post" id="delete-form">
+                {{ delete_form.hidden_tag() }}
+                <div class="mb-4">
+                    {{ delete_form.decrypt_password(class="border border-gray-300 rounded px-3 py-2 w-full",
+                    placeholder="Deletion Password", required=True) }}
+                </div>
+                <span id="deletion-password-error" class="text-red-500 font-semibold hidden mb-4"></span>
+                {{ delete_form.submit(class="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded
+                hover:bg-red-600",
+                id="deletion-modal-submit-button") }}
+            </form>
+        </div>
+    </div>
     <script>
         // DOM Elements
         const fileInput = document.getElementById('file-input');
@@ -106,22 +119,36 @@
         const dropzone = document.getElementById('dropzone');
         const dropzoneInstructions = document.getElementById('dropzone-instructions');
         const encryptCheckbox = document.getElementById('encrypt');
-        const encryptionModal = document.getElementById('encryption-modal');
-        const encryptionPasswordInput = document.getElementById('encryption-password-input');
-        const encryptionPasswordError = document.getElementById('encryption-password-error');
-        const encryptionModalSubmitButton = document.getElementById('encryption-modal-submit-button');
+        const encryptionPasswordContainer = document.getElementById('encryption-password-container');
         const downloadButtons = document.querySelectorAll('.download-button');
         const decryptionModal = document.getElementById('decryption-modal');
-        const decryptionPasswordInput = document.getElementById('decryption-password-input');
         const decryptionPasswordError = document.getElementById('decryption-password-error');
-        const decryptionModalSubmitButton = document.getElementById('decryption-modal-submit-button');
+        const decryptForm = document.getElementById('decrypt-form');
+        const deleteButtons = document.querySelectorAll('.delete-button');
+        const deletionModal = document.getElementById('deletion-modal');
+        const deletionPasswordError = document.getElementById('deletion-password-error');
+        const deleteForm = document.getElementById('delete-form');
 
+        deleteButtons.forEach(button => button.addEventListener('click', handleDeleteClick));
+        deleteForm.addEventListener('submit', handleDeleteFormSubmit);
         // Event Listeners
         fileInput.addEventListener('change', handleFileSelect);
         encryptCheckbox.addEventListener('change', handleEncryptCheckboxChange);
-        encryptionModalSubmitButton.addEventListener('click', handleEncryptionModalSubmit);
         downloadButtons.forEach(button => button.addEventListener('click', handleDownloadClick));
-        decryptionModalSubmitButton.addEventListener('click', handleDecryptionModalSubmit);
+        decryptForm.addEventListener('submit', handleDecryptionFormSubmit);
+
+        // Close modals when clicking outside the modal content
+        decryptionModal.addEventListener('click', function (event) {
+            if (!event.target.closest('.modal-content')) {
+                decryptionModal.classList.add('hidden');
+            }
+        });
+
+        deletionModal.addEventListener('click', function (event) {
+            if (!event.target.closest('.modal-content')) {
+                deletionModal.classList.add('hidden');
+            }
+        });
 
         // Functions
         function handleFileSelect() {
@@ -137,70 +164,38 @@
         }
 
         function handleEncryptCheckboxChange() {
-            encryptionModal.classList.toggle('hidden', !this.checked);
-        }
-
-        function handleEncryptionModalSubmit(event) {
-            const password = encryptionPasswordInput.value;
-
-            encryptionPasswordError.textContent = '';
-            encryptionPasswordError.classList.add('hidden');
-
-            if (password.trim() === '') {
-                event.preventDefault();
-                encryptionPasswordError.textContent = 'Please enter a password';
-                encryptionPasswordError.classList.remove('hidden');
-            } else if (password.length < 8) {
-                event.preventDefault();
-                encryptionPasswordError.textContent = 'Password must be at least 8 characters long';
-                encryptionPasswordError.classList.remove('hidden');
-            } else {
-                const encryptKeyInput = document.createElement('input');
-                encryptKeyInput.type = 'hidden';
-                encryptKeyInput.name = 'encrypt_key';
-                encryptKeyInput.value = password;
-
-                const uploadForm = document.getElementById('upload-form');
-                const formData = new FormData(uploadForm);
-                formData.append('encrypt_key', password);
-                formData.append('file', fileInput.files[0]);
-
-                fetch('/', {
-                    method: 'POST',
-                    body: formData
-                })
-                    .then(response => {
-                        if (response.ok) {
-                            encryptionModal.classList.add('hidden');
-                            window.location.href = '/';
-                        } else {
-                            console.error('File upload failed');
-                            throw new Error('File upload failed');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('An error occurred:', error);
-                    });
-            }
+            encryptionPasswordContainer.classList.toggle('hidden', !this.checked);
         }
 
         function handleDownloadClick(event) {
             event.preventDefault();
             const fileId = this.getAttribute('data-id');
-            decryptionModal.setAttribute('data-file-id', fileId);
-            decryptionModal.classList.remove('hidden');
+            const isEncrypted = this.getAttribute('data-encrypted') === 'True';
+            const filename = this.getAttribute('data-filename');
+
+            if (isEncrypted) {
+                decryptionModal.setAttribute('data-file-id', fileId, 'data-filename', filename);
+                decryptionModal.classList.remove('hidden');
+            } else {
+                decryptionModal.setAttribute('data-file-id', fileId, 'data-filename', filename);
+                downloadFile(fileId, filename);
+            }
         }
 
-        function handleDecryptionModalSubmit() {
-            const password = decryptionPasswordInput.value;
+        async function handleDecryptionFormSubmit(event) {
+            event.preventDefault();
             const fileId = decryptionModal.getAttribute('data-file-id');
+            const filename = await fetch(`/filename/${fileId}`).then(response => response.json()).then(data => data.filename);
 
+            // Reset error message and hide it
             decryptionPasswordError.textContent = '';
             decryptionPasswordError.classList.add('hidden');
 
+
+
             fetch(`/download/${fileId}`, {
                 method: 'POST',
-                body: new FormData(document.createElement('form')).append('decrypt_password', password)
+                body: new FormData(decryptForm)
             })
                 .then(response => {
                     if (response.ok) {
@@ -215,7 +210,7 @@
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = 'file.zip';
+                    a.download = filename;
                     document.body.appendChild(a);
                     a.click();
                     a.remove();
@@ -228,6 +223,90 @@
                     decryptionPasswordError.classList.remove('hidden');
                 });
         }
+
+        async function downloadFile(fileId) {
+            const filename = await fetch(`/filename/${fileId}`).then(response => response.json()).then(data => data.filename);
+
+            fetch(`/download/${fileId}`, {
+                method: 'POST'
+            })
+                .then(response => {
+                    if (response.ok) {
+                        return response.blob();
+                    } else {
+                        throw new Error('File download failed');
+                    }
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(error => {
+                    console.error('File download failed:', error);
+                });
+        }
+        function handleDeleteClick(event) {
+            event.preventDefault();
+            const fileId = this.getAttribute('data-id');
+            const isEncrypted = this.getAttribute('data-encrypted') === 'True';
+
+            if (isEncrypted) {
+                deletionModal.setAttribute('data-file-id', fileId);
+                deletionModal.classList.remove('hidden');
+            } else {
+                deleteFile(fileId);
+            }
+        }
+
+        function handleDeleteFormSubmit(event) {
+            event.preventDefault();
+            const fileId = deletionModal.getAttribute('data-file-id');
+
+            deletionPasswordError.textContent = '';
+            deletionPasswordError.classList.add('hidden');
+
+            fetch(`/delete/${fileId}`, {
+                method: 'POST',
+                body: new FormData(deleteForm)
+            })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        return response.text().then(error => {
+                            throw new Error(error);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Deletion failed:', error);
+                    deletionPasswordError.textContent = 'Deletion failed. Please enter the correct password.';
+                    deletionPasswordError.classList.remove('hidden');
+                });
+        }
+
+        function deleteFile(fileId) {
+            fetch(`/delete/${fileId}`, {
+                method: 'POST'
+            })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        throw new Error('File deletion failed');
+                    }
+                })
+                .catch(error => {
+                    console.error('File deletion failed:', error);
+                });
+        }
+
     </script>
 
 </body>
