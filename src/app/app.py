@@ -15,18 +15,21 @@ from cryptography.hazmat.backends import default_backend
 import zipfile
 import tempfile
 
-load_dotenv()
-
-app = Flask(__name__, template_folder="../templates")
-app.config['SQLALCHEMY_DATABASE_URI'] = getenv("DATABASE_URL")
-app.config['SECRET_KEY'] = getenv("SECRET_KEY")
-db = SQLAlchemy(app)
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+print(os.path.join(ROOT_DIR, '.env'))
+load_dotenv(os.path.join(ROOT_DIR, '.env'))
 
 # Configure logger
 if os.getenv("FLASK_ENV") == "development":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 else:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+app = Flask(__name__, template_folder="../templates")
+app.config['SQLALCHEMY_DATABASE_URI'] = getenv("SQLALCHEMY_DATABASE_URI")
+app.config['SECRET_KEY'] = getenv("SECRET_KEY")
+db = SQLAlchemy(app)
+
 logger = logging.getLogger(__name__)
 
 # Add file handler to log to a file with the date
@@ -139,7 +142,7 @@ class EncryptionHandler:
         return hashlib.sha256(password.strip().encode()).digest() == self.hashed_key
 
 
-@app.route("/", methods=["GET", "POST"])
+@ app.route("/", methods=["GET", "POST"])
 def index():
     upload_form = UploadForm()
     decrypt_form = DecryptForm()
@@ -253,7 +256,7 @@ def download_file(id):
         logger.error(f"Error in download_file function: {str(e)}", stack_info=True)
 
 
-@app.route("/delete/<int:id>", methods=["POST"])
+@ app.route("/delete/<int:id>", methods=["POST"])
 def delete_file(id):
     delete_form = DeleteForm()
     script = Script.query.get(id)
@@ -279,7 +282,7 @@ def delete_file(id):
         return "File not found", 404
 
 
-@app.route("/filename/<int:id>", methods=["GET"])
+@ app.route("/filename/<int:id>", methods=["GET"])
 def get_filename(id):
     script = Script.query.get(id)
     if script:
@@ -291,4 +294,4 @@ def get_filename(id):
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000)

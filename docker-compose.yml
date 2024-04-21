@@ -5,28 +5,10 @@ services:
     build: .
     ports:
       - "9988:5000"
-    env_file: .env
     environment:
       - FLASK_ENV=${FLASK_ENV}
-      - DATABASE_URL=${DATABASE_URL_DEV}
-#     depends_on:
-#       - db
-
-#   db:
-#     image: postgres:13
-#     ports:
-#       - "5567:5432" # Expose the PostgreSQL port
-#     environment:
-#       - POSTGRES_DB=${DB_NAME}
-#       - POSTGRES_USER=${DB_USER}
-#       - POSTGRES_PASSWORD=${DB_PASSWORD}
-#       - POSTGRES_HOST_AUTH_METHOD=trust
-#     command:
-#       - "postgres"
-#       - "-c"
-#       - "wal_level=logical"
-#     volumes:
-#       - postgres_data:/var/lib/postgresql/data
-
-# volumes:
-#   postgres_data:
+      - SQLALCHEMY_DATABASE_URI=${SQLALCHEMY_DATABASE_URI}
+      - SECRET_KEY=${SECRET_KEY}
+      - FLASK_APP=${FLASK_APP}
+    env_file:
+      - prod.env

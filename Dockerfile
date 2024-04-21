@@ -8,19 +8,20 @@ WORKDIR /usr/src/app
 RUN apt-get update && apt-get install -y libpq-dev gcc
 
 # Install Python dependencies
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+COPY prod_requirements.txt .
+
+RUN pip install --no-cache-dir -r prod_requirements.txt
 
 # Copy only the necessary files
 COPY src/ ./src
-COPY .env .
+COPY prod.env .env
 
-# Make port 5000 available to the world outside this container
-EXPOSE 5551
+# Make port 5551 available to the world outside this container
+EXPOSE 5000
 
 # Set environment variables
 ENV FLASK_APP=src/app.py
 ENV FLASK_ENV=production
 
 # Command to start the Flask application
-CMD ["flask", "run" "--port=5551" "--host=0.0.0.0"]
+CMD ["python", "src/app/app.py"]
