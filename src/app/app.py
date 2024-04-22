@@ -28,7 +28,7 @@ else:
 app = Flask(__name__, template_folder="../templates")
 app.config['SQLALCHEMY_DATABASE_URI'] = getenv("SQLALCHEMY_DATABASE_URI")
 app.config['SECRET_KEY'] = getenv("SECRET_KEY")
-db = SQLAlchemy(app)
+db: SQLAlchemy = SQLAlchemy(app)
 
 logger = logging.getLogger(__name__)
 
